@@ -1,0 +1,228 @@
+require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
+const nodemailer = require('nodemailer');
+const { MercadoPagoConfig, Payment } = require('mercadopago');
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+// ==================== CONFIG ====================
+const MP_ACCESS_TOKEN = process.env.MP_ACCESS_TOKEN;
+const EMAIL_USER      = process.env.EMAIL_USER;      // Gmail da Taty
+const EMAIL_PASS      = process.env.EMAIL_PASS;      // Senha de app do Gmail
+const FRONTEND_URL    = process.env.FRONTEND_URL || '*'; // URL do site (ex: https://seusite.com)
+const PORT            = process.env.PORT || 3000;
+
+if (!MP_ACCESS_TOKEN) {
+    console.error('❌ MP_ACCESS_TOKEN não configurado no .env!');
+    process.exit(1);
+}
+
+const mpClient = new MercadoPagoConfig({ accessToken: MP_ACCESS_TOKEN });
+
+// ==================== STORAGE ====================
+// Ordens ficam salvas em memória e no arquivo orders.json
+const DATA_FILE = path.join(__dirname, 'orders.json');
+const orders = new Map();
+
+function loadOrders() {
+    try {
+        const data = fs.readFileSync(DATA_FILE, 'utf8');
+        JSON.parse(data).forEach(([k, v]) => orders.set(k, v));
+        console.log(`📂 ${orders.size} ordem(ns) carregada(s).`);
+    } catch (_) {}
+}
+
+function saveOrders() {
+    fs.writeFileSync(DATA_FILE, JSON.stringify([...orders.entries()], null, 2));
+}
+
+loadOrders();
+
+// ==================== PRODUTOS ====================
+let productLinks = {};
+try {
+    productLinks = JSON.parse(fs.readFileSync(path.join(__dirname, 'products.json'), 'utf8'));
+} catch (_) {
+    console.warn('⚠️  products.json não encontrado. Os e-mails não terão links.');
+}
+
+// ==================== E-MAIL ====================
+async function sendProductsEmail(order) {
+    if (!EMAIL_USER || !EMAIL_PASS) {
+        console.warn('⚠️  E-mail não configurado. Pulando envio.');
+        return;
+    }
+
+    const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: { user: EMAIL_USER, pass: EMAIL_PASS }
+    });
+
+    const linksHtml = order.items.map(item => {
+        const link = productLinks[String(item.id)];
+        if (link) {
+            return `<li><strong>${item.name}</strong> (x${item.qty}) → <a href="${link}" style="color:#ec4899">Clique aqui para baixar</a></li>`;
+        }
+        return `<li><strong>${item.name}</strong> (x${item.qty}) → Link será enviado em breve</li>`;
+    }).join('');
+
+    const totalFormatado = order.total.toFixed(2).replace('.', ',');
+
+    const html = `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="font-family:'Nunito',Arial,sans-serif;background:#ffe4f0;margin:0;padding:20px">
+  <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.1)">
+    <div style="background:linear-gradient(135deg,#ec4899,#db2777);padding:30px;text-align:center">
+      <h1 style="color:#fff;font-size:24px;margin:0">🎉 Pedido Confirmado!</h1>
+      <p style="color:#fce7f3;margin:8px 0 0">Criativas da Tia Taty</p>
+    </div>
+    <div style="padding:28px">
+      <p style="font-size:16px;color:#374151">Olá, <strong>${order.name}</strong>!</p>
+      <p style="color:#6b7280">Seu pagamento foi confirmado. Aqui estão seus produtos digitais:</p>
+
+      <div style="background:#fce7f3;border-radius:12px;padding:20px;margin:20px 0">
+        <h3 style="margin:0 0 14px;color:#db2777;font-size:15px">📦 SEUS PRODUTOS</h3>
+        <ul style="margin:0;padding-left:18px;line-height:2;color:#374151;font-size:14px">
+          ${linksHtml}
+        </ul>
+      </div>
+
+      <div style="border-top:1px solid #fce7f3;padding-top:16px;margin-top:16px">
+        <p style="color:#6b7280;font-size:13px;margin:0">
+          💰 <strong>Total pago:</strong> R$ ${totalFormatado}<br>
+          📧 <strong>E-mail:</strong> ${order.email}<br>
+          📱 <strong>WhatsApp:</strong> ${order.phone}
+        </p>
+      </div>
+
+      <p style="color:#6b7280;font-size:13px;margin-top:20px">
+        Dúvidas? Fale conosco pelo WhatsApp!<br>
+        Com carinho, <strong style="color:#ec4899">Tia Taty 💖</strong>
+      </p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+    await transporter.sendMail({
+        from: `"Criativas da Tia Taty" <${EMAIL_USER}>`,
+        to: order.email,
+        subject: '🎉 Seus produtos chegaram! - Criativas da Tia Taty',
+        html
+    });
+
+    console.log(`✅ E-mail enviado para ${order.email}`);
+}
+
+// ==================== ROTAS ====================
+
+// Verificar se o servidor está online
+app.get('/health', (req, res) => res.json({ ok: true }));
+
+// Criar cobrança Pix
+app.post('/checkout', async (req, res) => {
+    try {
+        const { name, email, phone, items, total } = req.body;
+
+        if (!name || !email || !items || !total) {
+            return res.status(400).json({ error: 'Dados incompletos.' });
+        }
+
+        const payment = new Payment(mpClient);
+
+        const result = await payment.create({
+            body: {
+                transaction_amount: Number(Number(total).toFixed(2)),
+                description: 'Criativas da Tia Taty - Jogos Pedagógicos',
+                payment_method_id: 'pix',
+                payer: {
+                    email,
+                    first_name: name.split(' ')[0],
+                    last_name: name.split(' ').slice(1).join(' ') || '.'
+                }
+            },
+            requestOptions: { idempotencyKey: crypto.randomUUID() }
+        });
+
+        const paymentId = String(result.id);
+
+        // Salvar ordem
+        const order = { name, email, phone, items, total, status: 'pending', createdAt: new Date().toISOString() };
+        orders.set(paymentId, order);
+        saveOrders();
+
+        console.log(`🛒 Novo pedido criado: ${paymentId} — ${name} — R$ ${total}`);
+
+        res.json({
+            paymentId,
+            qrCode: result.point_of_interaction.transaction_data.qr_code,
+            qrCodeBase64: result.point_of_interaction.transaction_data.qr_code_base64,
+            expiresAt: result.date_of_expiration
+        });
+
+    } catch (err) {
+        console.error('Erro ao criar pagamento:', err);
+        res.status(500).json({ error: 'Erro ao gerar cobrança Pix. Tente novamente.' });
+    }
+});
+
+// Verificar status do pagamento (frontend faz polling)
+app.get('/check-payment/:id', async (req, res) => {
+    try {
+        const payment = new Payment(mpClient);
+        const result = await payment.get({ id: req.params.id });
+        res.json({ status: result.status });
+    } catch (err) {
+        res.status(500).json({ error: 'Erro ao verificar pagamento.' });
+    }
+});
+
+// Webhook do Mercado Pago (confirma pagamento automaticamente)
+app.post('/webhook', async (req, res) => {
+    res.sendStatus(200); // Responde 200 logo para o MP saber que recebeu
+
+    try {
+        const { type, data } = req.body;
+
+        if (type !== 'payment' || !data?.id) return;
+
+        const payment = new Payment(mpClient);
+        const result = await payment.get({ id: data.id });
+
+        if (result.status !== 'approved') return;
+
+        const paymentId = String(data.id);
+        const order = orders.get(paymentId);
+
+        if (!order) {
+            console.warn(`⚠️  Pedido ${paymentId} não encontrado na memória.`);
+            return;
+        }
+
+        if (order.status === 'approved') return; // Já processado
+
+        order.status = 'approved';
+        order.approvedAt = new Date().toISOString();
+        orders.set(paymentId, order);
+        saveOrders();
+
+        console.log(`💰 Pagamento aprovado: ${paymentId} — ${order.name}`);
+        await sendProductsEmail(order);
+
+    } catch (err) {
+        console.error('Erro no webhook:', err);
+    }
+});
+
+app.listen(PORT, () => {
+    console.log(`🚀 Servidor rodando na porta ${PORT}`);
+    console.log(`   Acesse: http://localhost:${PORT}/health`);
+});
