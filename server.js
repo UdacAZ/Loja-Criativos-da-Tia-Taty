@@ -1,7 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 const { MercadoPagoConfig, Payment } = require('mercadopago');
 const fs = require('fs');
 const path = require('path');
@@ -13,8 +13,7 @@ app.use(express.json());
 
 // ==================== CONFIG ====================
 const MP_ACCESS_TOKEN = process.env.MP_ACCESS_TOKEN;
-const EMAIL_USER      = process.env.EMAIL_USER;      // Gmail da Taty
-const EMAIL_PASS      = process.env.EMAIL_PASS;      // Senha de app do Gmail
+const RESEND_API_KEY  = process.env.RESEND_API_KEY;  // API Key do Resend
 const FRONTEND_URL    = process.env.FRONTEND_URL || '*'; // URL do site (ex: https://seusite.com)
 const PORT            = process.env.PORT || 3000;
 
@@ -54,20 +53,12 @@ try {
 
 // ==================== E-MAIL ====================
 async function sendProductsEmail(order) {
-    if (!EMAIL_USER || !EMAIL_PASS) {
-        console.warn('⚠️  E-mail não configurado. Pulando envio.');
+    if (!RESEND_API_KEY) {
+        console.warn('⚠️  RESEND_API_KEY não configurado. Pulando envio.');
         return;
     }
 
-    const transporter = nodemailer.createTransport({
-        host: 'smtp.gmail.com',
-        port: 587,
-        secure: false,
-        auth: { user: EMAIL_USER, pass: EMAIL_PASS },
-        connectionTimeout: 10000,
-        greetingTimeout: 10000,
-        socketTimeout: 10000
-    });
+    const resend = new Resend(RESEND_API_KEY);
 
     const linksHtml = order.items.map(item => {
         const link = productLinks[String(item.id)];
@@ -117,8 +108,8 @@ async function sendProductsEmail(order) {
 </body>
 </html>`;
 
-    await transporter.sendMail({
-        from: `"Criativas da Tia Taty" <${EMAIL_USER}>`,
+    await resend.emails.send({
+        from: 'Criativas da Tia Taty <onboarding@resend.dev>',
         to: order.email,
         subject: '🎉 Seus produtos chegaram! - Criativas da Tia Taty',
         html
