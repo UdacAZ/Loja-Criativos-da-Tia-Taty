@@ -127,6 +127,22 @@ async function sendProductsEmail(order) {
 // Verificar se o servidor está online
 app.get('/health', (req, res) => res.json({ ok: true }));
 
+// Testar envio de e-mail
+app.get('/test-email/:email', async (req, res) => {
+    try {
+        await sendProductsEmail({
+            name: 'Teste',
+            email: req.params.email,
+            phone: '35999999999',
+            items: [{ id: 1, name: 'Carnê da Leitura - PDF', qty: 1 }],
+            total: 6.99
+        });
+        res.json({ ok: true, message: 'E-mail enviado!' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // Criar cobrança Pix
 app.post('/checkout', async (req, res) => {
     try {
