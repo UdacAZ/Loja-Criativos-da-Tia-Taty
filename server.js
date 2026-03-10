@@ -179,6 +179,21 @@ app.get('/check-payment/:id', async (req, res) => {
     try {
         const payment = new Payment(mpClient);
         const result = await payment.get({ id: req.params.id });
+
+        // Se aprovado, envia e-mail (caso webhook não tenha disparado)
+        if (result.status === 'approved') {
+            const paymentId = String(req.params.id);
+            const order = orders.get(paymentId);
+            if (order && order.status !== 'approved') {
+                order.status = 'approved';
+                order.approvedAt = new Date().toISOString();
+                orders.set(paymentId, order);
+                saveOrders();
+                console.log(`💰 Pagamento aprovado (polling): ${paymentId} — ${order.name}`);
+                sendProductsEmail(order).catch(err => console.error('Erro ao enviar e-mail:', err));
+            }
+        }
+
         res.json({ status: result.status });
     } catch (err) {
         res.status(500).json({ error: 'Erro ao verificar pagamento.' });
