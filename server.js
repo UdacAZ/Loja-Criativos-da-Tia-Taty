@@ -1,20 +1,18 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const { Resend } = require('resend');
 const { MercadoPagoConfig, Payment } = require('mercadopago');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
 const app = express();
-app.use(cors());
+app.use(cors({ origin: process.env.FRONTEND_URL || '*' }));
 app.use(express.json());
 
 // ==================== CONFIG ====================
 const MP_ACCESS_TOKEN = process.env.MP_ACCESS_TOKEN;
-const RESEND_API_KEY  = process.env.RESEND_API_KEY;  // API Key do Resend
-const FRONTEND_URL    = process.env.FRONTEND_URL || '*'; // URL do site (ex: https://seusite.com)
+const BREVO_API_KEY   = process.env.BREVO_API_KEY;
 const PORT            = process.env.PORT || 3000;
 
 if (!MP_ACCESS_TOKEN) {
@@ -53,12 +51,10 @@ try {
 
 // ==================== E-MAIL ====================
 async function sendProductsEmail(order) {
-    if (!RESEND_API_KEY) {
-        console.warn('⚠️  RESEND_API_KEY não configurado. Pulando envio.');
+    if (!BREVO_API_KEY) {
+        console.warn('⚠️  BREVO_API_KEY não configurado. Pulando envio.');
         return;
     }
-
-    const resend = new Resend(RESEND_API_KEY);
 
     const linksHtml = order.items.map(item => {
         const link = productLinks[String(item.id)];
@@ -108,12 +104,24 @@ async function sendProductsEmail(order) {
 </body>
 </html>`;
 
-    await resend.emails.send({
-        from: 'Criativas da Tia Taty <onboarding@resend.dev>',
-        to: order.email,
-        subject: '🎉 Seus produtos chegaram! - Criativas da Tia Taty',
-        html
+    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+            'api-key': BREVO_API_KEY,
+            'content-type': 'application/json'
+        },
+        body: JSON.stringify({
+            sender: { name: 'Criativas da Tia Taty', email: 'criativosdatiataty@gmail.com' },
+            to: [{ email: order.email, name: order.name }],
+            subject: '🎉 Seus produtos chegaram! - Criativas da Tia Taty',
+            htmlContent: html
+        })
     });
+
+    if (!response.ok) {
+        const err = await response.text();
+        throw new Error(`Brevo error: ${err}`);
+    }
 
     console.log(`✅ E-mail enviado para ${order.email}`);
 }
@@ -123,8 +131,12 @@ async function sendProductsEmail(order) {
 // Verificar se o servidor está online
 app.get('/health', (req, res) => res.json({ ok: true }));
 
-// Testar envio de e-mail
+// Testar envio de e-mail (protegido por chave secreta)
 app.get('/test-email/:email', async (req, res) => {
+    const secret = req.query.secret;
+    if (!secret || secret !== process.env.ADMIN_SECRET) {
+        return res.status(403).json({ error: 'Acesso negado.' });
+    }
     try {
         await sendProductsEmail({
             name: 'Teste',
