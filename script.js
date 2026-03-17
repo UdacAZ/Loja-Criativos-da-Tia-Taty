@@ -114,17 +114,18 @@ const products = [
     },
     {
         id: 9,
-        name: "Kit Meio Ambiente - Atividades de Sustentabilidade - PDF",
-        categoryLabel: "Ciências",
-        price: 19.90,
+        name: "Casa Matemática - PDF",
+        categoryLabel: "Matemática",
+        price: 6.99,
         oldPrice: null,
         badge: "novo",
-        icon: "fas fa-leaf",
+        icon: "fas fa-calculator",
         image: null,
-        description: "O Kit Meio Ambiente é um conjunto completo de atividades pedagógicas sobre sustentabilidade e preservação ambiental. Inclui jogos, fichas de atividades, cartazes e propostas de projetos para engajar as crianças com o tema.",
-        howToUse: "O kit é dividido em módulos temáticos: água, fauna, flora e reciclagem. Use cada módulo em uma semana ou conforme o planejamento escolar. As atividades incluem instruções detalhadas e podem ser adaptadas para diferentes faixas etárias.",
+        description: "Em breve! A Casa Matemática está sendo preparada com muito carinho. Fique de olho nas novidades!",
+        howToUse: "Em breve.",
         video: null,
-        isNew: true
+        isNew: true,
+        comingSoon: true
     }
 ];
 
@@ -269,7 +270,7 @@ function renderProducts() {
             <div class="product-card" style="animation-delay: ${index * 0.06}s">
                 ${product.badge ? `<span class="product-badge badge-${product.badge}">${getBadgeText(product.badge)}</span>` : ''}
                 <div class="product-image">
-                    ${product.image ? `<img src="${product.image}" alt="${product.name}" class="product-img">` : `<i class="${product.icon} placeholder-icon"></i>`}
+                    ${product.image ? `<img src="${product.image}" alt="${product.name}" class="product-img" loading="lazy">` : `<i class="${product.icon} placeholder-icon"></i>`}
                     <span class="pdf-tag"><i class="fas fa-file-pdf"></i> PDF</span>
                     <div class="product-image-overlay">
                         <button class="overlay-btn" title="Ver detalhes" onclick="showDetails(${product.id})">
@@ -293,9 +294,10 @@ function renderProducts() {
                     <button class="btn-details" onclick="showDetails(${product.id})">
                         <i class="fas fa-eye"></i> Ver detalhes
                     </button>
-                    <button class="btn-add-cart" onclick="addToCart(${product.id})" id="btn-cart-${product.id}">
-                        <i class="fas fa-cart-plus"></i> Adicionar ao carrinho
-                    </button>
+                    ${product.comingSoon
+                        ? `<button class="btn-add-cart" disabled style="opacity:0.5;cursor:not-allowed;"><i class="fas fa-clock"></i> Em breve</button>`
+                        : `<button class="btn-add-cart" onclick="addToCart(${product.id})" id="btn-cart-${product.id}"><i class="fas fa-cart-plus"></i> Adicionar ao carrinho</button>`
+                    }
                 </div>
             </div>
         `;
@@ -338,7 +340,19 @@ function showDetails(productId) {
     document.getElementById('modalHowToUse').textContent = product.howToUse || 'Instruções em breve.';
 
     const cartBtn = document.getElementById('modalAddCart');
-    cartBtn.onclick = () => { addToCart(product.id); closeModal(); };
+    if (product.comingSoon) {
+        cartBtn.innerHTML = '<i class="fas fa-clock"></i> Em breve';
+        cartBtn.disabled = true;
+        cartBtn.style.opacity = '0.5';
+        cartBtn.style.cursor = 'not-allowed';
+        cartBtn.onclick = null;
+    } else {
+        cartBtn.innerHTML = '<i class="fas fa-cart-plus"></i> Adicionar ao carrinho';
+        cartBtn.disabled = false;
+        cartBtn.style.opacity = '';
+        cartBtn.style.cursor = '';
+        cartBtn.onclick = () => { addToCart(product.id); closeModal(); };
+    }
 
     overlay.classList.add('active');
     document.body.style.overflow = 'hidden';
@@ -575,7 +589,7 @@ function initCarousel() {
         <div class="carousel-card">
             <div class="product-image">
                 <span class="badge-launch"><i class="fas fa-rocket"></i> Lançamento</span>
-                ${product.image ? `<img src="${product.image}" alt="${product.name}" class="product-img">` : `<i class="${product.icon} placeholder-icon"></i>`}
+                ${product.image ? `<img src="${product.image}" alt="${product.name}" class="product-img" loading="lazy">` : `<i class="${product.icon} placeholder-icon"></i>`}
                 <span class="pdf-tag"><i class="fas fa-file-pdf"></i> PDF</span>
             </div>
             <div class="product-info">
@@ -585,9 +599,10 @@ function initCarousel() {
                     ${product.oldPrice ? `<span class="price-old">R$ ${formatPrice(product.oldPrice)}</span>` : ''}
                     <span class="price-current">R$ ${formatPrice(product.price)}</span>
                 </div>
-                <button class="btn-add-cart" onclick="addToCart(${product.id})">
-                    <i class="fas fa-cart-plus"></i> Adicionar
-                </button>
+                ${product.comingSoon
+                    ? `<button class="btn-add-cart" disabled style="opacity:0.5;cursor:not-allowed;"><i class="fas fa-clock"></i> Em breve</button>`
+                    : `<button class="btn-add-cart" onclick="addToCart(${product.id})"><i class="fas fa-cart-plus"></i> Adicionar</button>`
+                }
             </div>
         </div>
     `).join('');
@@ -669,6 +684,217 @@ function initCarousel() {
     });
 
     updateCarousel();
+}
+
+// ==================== CHECKOUT ====================
+// URL do backend (Railway). Altere para o endereço real após o deploy.
+const BACKEND_URL = 'https://loja-criativos-da-tia-taty-production.up.railway.app';
+
+let checkoutData = { name: '', email: '', phone: '' };
+let currentPaymentId = null;
+let paymentPollInterval = null;
+
+function openCheckout() {
+    if (cart.length === 0) {
+        showToast('Seu carrinho está vazio!');
+        return;
+    }
+    closeCartSidebar();
+    checkoutGoToStep(1);
+    checkoutData = { name: '', email: '', phone: '' };
+    document.getElementById('checkoutName').value = '';
+    document.getElementById('checkoutEmail').value = '';
+    document.getElementById('checkoutPhone').value = '';
+    [document.getElementById('checkoutName'),
+     document.getElementById('checkoutEmail'),
+     document.getElementById('checkoutPhone')].forEach(el => el.classList.remove('error'));
+
+    document.getElementById('checkoutOverlay').classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeCheckout() {
+    stopPaymentPolling();
+    document.getElementById('checkoutOverlay').classList.remove('active');
+    document.body.style.overflow = '';
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('checkoutClose').addEventListener('click', closeCheckout);
+    document.getElementById('checkoutOverlay').addEventListener('click', (e) => {
+        if (e.target === e.currentTarget) closeCheckout();
+    });
+});
+
+function checkoutGoToStep(step) {
+    for (let i = 1; i <= 3; i++) {
+        const content = document.getElementById(`checkoutStep${i}`);
+        const item = document.getElementById(`stepItem${i}`);
+        content.classList.remove('active');
+        item.classList.remove('active', 'done');
+        if (i < step) item.classList.add('done');
+        if (i === step) { item.classList.add('active'); content.classList.add('active'); }
+    }
+    document.getElementById('stepLine1').classList.toggle('done', step > 1);
+    document.getElementById('stepLine2').classList.toggle('done', step > 2);
+}
+
+function checkoutGoToPayment() {
+    const name  = document.getElementById('checkoutName').value.trim();
+    const email = document.getElementById('checkoutEmail').value.trim();
+    const phone = document.getElementById('checkoutPhone').value.trim();
+    let valid = true;
+
+    [['checkoutName', name], ['checkoutEmail', email], ['checkoutPhone', phone]].forEach(([id, val]) => {
+        const el = document.getElementById(id);
+        if (!val) { el.classList.add('error'); valid = false; }
+        else el.classList.remove('error');
+    });
+
+    if (!email.includes('@') || !email.includes('.')) {
+        document.getElementById('checkoutEmail').classList.add('error');
+        valid = false;
+    }
+
+    if (!valid) { showToast('Preencha todos os campos corretamente.'); return; }
+
+    checkoutData = { name, email, phone };
+
+    const total = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
+    document.getElementById('checkoutTotal').textContent = `R$ ${formatPrice(total)}`;
+
+    checkoutGoToStep(2);
+    generatePixPayment(total);
+}
+
+function checkoutGoBack() {
+    stopPaymentPolling();
+    checkoutGoToStep(1);
+}
+
+// Gera a cobrança Pix no backend e exibe o QR Code
+async function generatePixPayment(total) {
+    pixShowLoading();
+
+    const items = cart.map(item => ({ id: item.id, name: item.name, qty: item.qty, price: item.price }));
+
+    try {
+        const res = await fetch(`${BACKEND_URL}/checkout`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...checkoutData, items, total })
+        });
+
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || 'Erro no servidor.');
+        }
+
+        const data = await res.json();
+        currentPaymentId = data.paymentId;
+
+        // Exibe QR Code
+        document.getElementById('pixQrImg').src = `data:image/png;base64,${data.qrCodeBase64}`;
+        document.getElementById('pixCopyPaste').textContent = data.qrCode;
+        pixShowQr();
+
+        // Começa a verificar o status automaticamente
+        startPaymentPolling();
+
+    } catch (err) {
+        console.error(err);
+        pixShowError(err.message || 'Não foi possível gerar o QR Code. Tente novamente.');
+    }
+}
+
+function checkoutRetryPixGeneration() {
+    const total = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
+    generatePixPayment(total);
+}
+
+// Verifica o pagamento a cada 4 segundos (expira em 35 minutos)
+const PIX_EXPIRATION_MS = 35 * 60 * 1000;
+let pollStartTime = null;
+
+function startPaymentPolling() {
+    stopPaymentPolling();
+    pollStartTime = Date.now();
+    paymentPollInterval = setInterval(async () => {
+        if (!currentPaymentId) return;
+        if (Date.now() - pollStartTime > PIX_EXPIRATION_MS) {
+            stopPaymentPolling();
+            pixShowError('O QR Code Pix expirou. Clique em "Tentar novamente" para gerar um novo.');
+            return;
+        }
+        try {
+            const res = await fetch(`${BACKEND_URL}/check-payment/${currentPaymentId}`);
+            const data = await res.json();
+            if (data.status === 'approved') {
+                stopPaymentPolling();
+                onPaymentApproved();
+            } else if (data.status === 'rejected' || data.status === 'cancelled') {
+                stopPaymentPolling();
+                pixShowError('Pagamento recusado ou cancelado. Tente novamente.');
+            }
+        } catch (_) {}
+    }, 4000);
+}
+
+function stopPaymentPolling() {
+    if (paymentPollInterval) {
+        clearInterval(paymentPollInterval);
+        paymentPollInterval = null;
+    }
+}
+
+// Pagamento confirmado automaticamente
+function onPaymentApproved() {
+    const total = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
+
+    document.getElementById('successInfo').innerHTML = `
+        <strong>📧 E-mail:</strong> ${checkoutData.email}<br>
+        <strong>📱 WhatsApp:</strong> ${checkoutData.phone}<br>
+        <strong>💰 Total pago:</strong> R$ ${formatPrice(total)}
+    `;
+
+    checkoutGoToStep(3);
+
+    // Limpa o carrinho
+    cart = [];
+    saveCart();
+    updateCartUI();
+}
+
+// Copiar código Pix Copia e Cola
+function copyPixCode() {
+    const code = document.getElementById('pixCopyPaste').textContent;
+    navigator.clipboard.writeText(code).then(() => {
+        const btn = document.getElementById('pixCopyBtn');
+        btn.classList.add('copied');
+        btn.innerHTML = '<i class="fas fa-check"></i> Copiado!';
+        setTimeout(() => {
+            btn.classList.remove('copied');
+            btn.innerHTML = '<i class="fas fa-copy"></i> Copiar código';
+        }, 2000);
+    });
+}
+
+// Helpers de estado do passo 2
+function pixShowLoading() {
+    document.getElementById('pixLoading').style.display = 'flex';
+    document.getElementById('pixQrArea').style.display = 'none';
+    document.getElementById('pixError').style.display = 'none';
+}
+function pixShowQr() {
+    document.getElementById('pixLoading').style.display = 'none';
+    document.getElementById('pixQrArea').style.display = 'block';
+    document.getElementById('pixError').style.display = 'none';
+}
+function pixShowError(msg) {
+    document.getElementById('pixLoading').style.display = 'none';
+    document.getElementById('pixQrArea').style.display = 'none';
+    document.getElementById('pixError').style.display = 'flex';
+    document.getElementById('pixErrorMsg').textContent = msg;
 }
 
 // ==================== HERO STARS ====================
