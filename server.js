@@ -131,6 +131,9 @@ async function sendProductsEmail(order) {
         Dúvidas? Fale conosco pelo WhatsApp!<br>
         Com carinho, <strong style="color:#ec4899">Tia Tati 💖</strong>
       </p>
+      <div style="background:#fef9c3;border-radius:8px;padding:12px 16px;margin-top:16px;font-size:12px;color:#854d0e">
+        📬 <strong>Não encontrou este e-mail?</strong> Verifique sua pasta de <strong>spam</strong> ou <strong>lixo eletrônico</strong> e marque como <strong>"Não é spam"</strong> para receber nossas mensagens normalmente.
+      </div>
     </div>
   </div>
 </body>
