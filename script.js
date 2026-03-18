@@ -526,7 +526,14 @@ function saveCart() {
 function loadCart() {
     const saved = localStorage.getItem('fe_cart');
     if (saved) {
-        try { cart = JSON.parse(saved); } catch(e) { cart = []; }
+        try {
+            const parsed = JSON.parse(saved);
+            // Remove produtos "em breve" que possam ter sido salvos anteriormente
+            cart = parsed.filter(item => {
+                const p = products.find(p => p.id === item.id);
+                return p && !p.comingSoon;
+            });
+        } catch(e) { cart = []; }
     }
     updateCartUI();
 }
@@ -757,6 +764,12 @@ function checkoutGoToPayment() {
         valid = false;
     }
 
+    const phoneDigits = phone.replace(/\D/g, '');
+    if (phoneDigits.length < 10) {
+        document.getElementById('checkoutPhone').classList.add('error');
+        valid = false;
+    }
+
     if (!valid) { showToast('Preencha todos os campos corretamente.'); return; }
 
     checkoutData = { name, email, phone };
@@ -852,11 +865,22 @@ function stopPaymentPolling() {
 function onPaymentApproved() {
     const total = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
 
-    document.getElementById('successInfo').innerHTML = `
-        <strong>📧 E-mail:</strong> ${checkoutData.email}<br>
-        <strong>📱 WhatsApp:</strong> ${checkoutData.phone}<br>
-        <strong>💰 Total pago:</strong> R$ ${formatPrice(total)}
-    `;
+    const info = document.getElementById('successInfo');
+    info.innerHTML = '';
+    const lines = [
+        ['📧 E-mail', checkoutData.email],
+        ['📱 WhatsApp', checkoutData.phone],
+        ['💰 Total pago', `R$ ${formatPrice(total)}`]
+    ];
+    lines.forEach(([label, value]) => {
+        const p = document.createElement('p');
+        p.style.margin = '4px 0';
+        const b = document.createElement('strong');
+        b.textContent = label + ': ';
+        p.appendChild(b);
+        p.appendChild(document.createTextNode(value));
+        info.appendChild(p);
+    });
 
     checkoutGoToStep(3);
 
