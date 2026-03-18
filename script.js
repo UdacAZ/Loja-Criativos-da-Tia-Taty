@@ -770,7 +770,7 @@ function checkoutGoToPayment() {
         else el.classList.remove('error');
     });
 
-    if (!email.includes('@') || !email.includes('.')) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
         document.getElementById('checkoutEmail').classList.add('error');
         valid = false;
     }
