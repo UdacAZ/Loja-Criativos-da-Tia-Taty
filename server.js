@@ -10,6 +10,38 @@ const app = express();
 app.use(cors({ origin: process.env.FRONTEND_URL || '*' }));
 app.use(express.json());
 
+// ==================== SEGURANÇA ====================
+
+// Rate limiter simples (sem pacote extra)
+const rateLimitMap = new Map();
+function rateLimit(maxReqs, windowMs) {
+    return (req, res, next) => {
+        const ip = req.ip || req.socket.remoteAddress || 'unknown';
+        const now = Date.now();
+        const key = `${ip}:${req.path}`;
+        const timestamps = (rateLimitMap.get(key) || []).filter(t => now - t < windowMs);
+        timestamps.push(now);
+        rateLimitMap.set(key, timestamps);
+        if (timestamps.length > maxReqs) {
+            return res.status(429).json({ error: 'Muitas tentativas. Aguarde um momento.' });
+        }
+        next();
+    };
+}
+
+// Preços oficiais dos produtos (fonte da verdade no backend)
+const PRODUCT_PRICES = { 1:6.99, 2:6.99, 3:6.99, 4:6.99, 5:6.99, 6:6.99, 7:6.99, 8:6.99, 9:6.99 };
+
+// Sanitizar HTML para evitar injeção no e-mail
+function escapeHtml(str) {
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 // ==================== CONFIG ====================
 const MP_ACCESS_TOKEN = process.env.MP_ACCESS_TOKEN;
 const BREVO_API_KEY   = process.env.BREVO_API_KEY;
@@ -58,7 +90,7 @@ async function sendProductsEmail(order) {
 
     const linksHtml = order.items.map(item => {
         const link = productLinks[String(item.id)];
-        if (link) {
+        if (link && link.startsWith('http')) {
             return `<li><strong>${item.name}</strong> (x${item.qty}) → <a href="${link}" style="color:#ec4899">Clique aqui para baixar</a></li>`;
         }
         return `<li><strong>${item.name}</strong> (x${item.qty}) → Link será enviado em breve</li>`;
@@ -74,10 +106,10 @@ async function sendProductsEmail(order) {
   <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.1)">
     <div style="background:linear-gradient(135deg,#ec4899,#db2777);padding:30px;text-align:center">
       <h1 style="color:#fff;font-size:24px;margin:0">🎉 Pedido Confirmado!</h1>
-      <p style="color:#fce7f3;margin:8px 0 0">Criativas da Tia Taty</p>
+      <p style="color:#fce7f3;margin:8px 0 0">Criativas da Tia Tati</p>
     </div>
     <div style="padding:28px">
-      <p style="font-size:16px;color:#374151">Olá, <strong>${order.name}</strong>!</p>
+      <p style="font-size:16px;color:#374151">Olá, <strong>${escapeHtml(order.name)}</strong>!</p>
       <p style="color:#6b7280">Seu pagamento foi confirmado. Aqui estão seus produtos digitais:</p>
 
       <div style="background:#fce7f3;border-radius:12px;padding:20px;margin:20px 0">
@@ -97,7 +129,7 @@ async function sendProductsEmail(order) {
 
       <p style="color:#6b7280;font-size:13px;margin-top:20px">
         Dúvidas? Fale conosco pelo WhatsApp!<br>
-        Com carinho, <strong style="color:#ec4899">Tia Taty 💖</strong>
+        Com carinho, <strong style="color:#ec4899">Tia Tati 💖</strong>
       </p>
     </div>
   </div>
@@ -111,9 +143,9 @@ async function sendProductsEmail(order) {
             'content-type': 'application/json'
         },
         body: JSON.stringify({
-            sender: { name: 'Criativas da Tia Taty', email: 'criativosdatiataty@gmail.com' },
+            sender: { name: 'Criativas da Tia Tati', email: 'criativosdatiataty@gmail.com' },
             to: [{ email: order.email, name: order.name }],
-            subject: '🎉 Seus produtos chegaram! - Criativas da Tia Taty',
+            subject: '🎉 Seus produtos chegaram! - Criativas da Tia Tati',
             htmlContent: html
         })
     });
@@ -152,7 +184,7 @@ app.get('/test-email/:email', async (req, res) => {
 });
 
 // Criar cobrança Pix
-app.post('/checkout', async (req, res) => {
+app.post('/checkout', rateLimit(5, 10 * 60 * 1000), async (req, res) => {
     try {
         const { name, email, phone, items, total } = req.body;
 
@@ -160,12 +192,26 @@ app.post('/checkout', async (req, res) => {
             return res.status(400).json({ error: 'Dados incompletos.' });
         }
 
+        if (!Array.isArray(items) || items.length === 0 || items.length > 20) {
+            return res.status(400).json({ error: 'Carrinho inválido.' });
+        }
+
+        // Validar total contra preços reais (evita manipulação de preço)
+        const expectedTotal = items.reduce((sum, item) => {
+            const price = PRODUCT_PRICES[item.id];
+            if (!price) return sum;
+            return sum + price * (item.qty || 1);
+        }, 0);
+        if (Math.abs(expectedTotal - Number(total)) > 0.05) {
+            return res.status(400).json({ error: 'Valor inválido.' });
+        }
+
         const payment = new Payment(mpClient);
 
         const result = await payment.create({
             body: {
                 transaction_amount: Number(Number(total).toFixed(2)),
-                description: 'Criativas da Tia Taty - Jogos Pedagógicos',
+                description: 'Criativas da Tia Tati - Jogos Pedagógicos',
                 payment_method_id: 'pix',
                 payer: {
                     email,
@@ -199,7 +245,7 @@ app.post('/checkout', async (req, res) => {
 });
 
 // Verificar status do pagamento (frontend faz polling)
-app.get('/check-payment/:id', async (req, res) => {
+app.get('/check-payment/:id', rateLimit(60, 60 * 1000), async (req, res) => {
     try {
         const payment = new Payment(mpClient);
         const result = await payment.get({ id: req.params.id });

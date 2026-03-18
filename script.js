@@ -279,7 +279,7 @@ function renderProducts() {
                         <button class="overlay-btn" title="${isFav ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}" onclick="toggleFavorite(${product.id})">
                             <i class="${isFav ? 'fas' : 'far'} fa-heart"></i>
                         </button>
-                        <button class="overlay-btn" title="Compartilhar" onclick="showToast('Link copiado!')">
+                        <button class="overlay-btn" title="Compartilhar" onclick="navigator.clipboard.writeText(window.location.href).then(()=>showToast('Link copiado!'))">
                             <i class="fas fa-share-alt"></i>
                         </button>
                     </div>
@@ -426,7 +426,8 @@ function addToCart(productId) {
     saveCart();
     updateCartUI();
     animateCartButton(productId);
-    showToast(`"${product.name.substring(0, 30)}..." adicionado ao carrinho!`);
+    const displayName = product.name.length > 30 ? product.name.substring(0, 30) + '...' : product.name;
+    showToast(`"${displayName}" adicionado ao carrinho!`);
 }
 
 function removeFromCart(productId) {
