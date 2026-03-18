@@ -1878,9 +1878,9 @@ img {
 /* ---------- Toast Notification ---------- */
 .toast {
     position: fixed;
-    bottom: 30px;
+    top: 30px;
     left: 50%;
-    transform: translateX(-50%) translateY(100px);
+    transform: translateX(-50%) translateY(-120px);
     background: var(--text);
     color: var(--white);
     padding: 12px 25px;
@@ -1890,7 +1890,7 @@ img {
     display: flex;
     align-items: center;
     gap: 10px;
-    z-index: 500;
+    z-index: 9999;
     box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
     transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
     white-space: nowrap;
@@ -1898,6 +1898,7 @@ img {
 
 .toast.show {
     transform: translateX(-50%) translateY(0);
+    top: 30px;
 }
 
 .toast i {

@@ -740,9 +740,11 @@ function closeCheckout() {
 
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('checkoutClose').addEventListener('click', closeCheckout);
-    document.getElementById('checkoutOverlay').addEventListener('click', (e) => {
-        if (e.target === e.currentTarget) closeCheckout();
-    });
+});
+
+// Recarrega carrinho ao voltar de outra página (bfcache)
+window.addEventListener('pageshow', (e) => {
+    if (e.persisted) { loadCart(); updateCartUI(); }
 });
 
 function checkoutGoToStep(step) {
