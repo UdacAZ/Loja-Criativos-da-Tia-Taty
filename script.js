@@ -428,6 +428,17 @@ function addToCart(productId) {
     animateCartButton(productId);
     const displayName = product.name.length > 30 ? product.name.substring(0, 30) + '...' : product.name;
     showToast(`"${displayName}" adicionado ao carrinho!`);
+
+    // Meta Pixel - AddToCart
+    if (typeof fbq !== 'undefined') {
+        fbq('track', 'AddToCart', {
+            content_name: product.name,
+            content_ids: [String(product.id)],
+            content_type: 'product',
+            value: product.price,
+            currency: 'BRL'
+        });
+    }
 }
 
 function removeFromCart(productId) {
@@ -883,6 +894,17 @@ function onPaymentApproved() {
     });
 
     checkoutGoToStep(3);
+
+    // Meta Pixel - Purchase
+    if (typeof fbq !== 'undefined') {
+        fbq('track', 'Purchase', {
+            content_ids: cart.map(i => String(i.id)),
+            content_type: 'product',
+            value: total,
+            currency: 'BRL',
+            num_items: cart.reduce((s, i) => s + i.qty, 0)
+        });
+    }
 
     // Limpa o carrinho
     cart = [];
