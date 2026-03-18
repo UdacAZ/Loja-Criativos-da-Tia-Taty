@@ -14,7 +14,7 @@ const products = [
         oldPrice: null,
         badge: "novo",
         icon: "fas fa-book-open",
-        image: "img/carne-da-leitura.png",
+        image: "img/carne-da-leitura.jpg",
         description: "O Carnê da Leitura é um material pedagógico em PDF voltado para o processo de alfabetização. Com atividades progressivas e lúdicas, auxilia crianças no reconhecimento de letras, sílabas e palavras de forma divertida e eficaz.",
         howToUse: "Imprima o PDF e entregue uma página por vez para a criança. Siga a sequência proposta: primeiro o reconhecimento visual das letras, depois a formação de sílabas e, por fim, a leitura de pequenas palavras. Pode ser usado individualmente ou em grupo.",
         video: null
@@ -27,7 +27,7 @@ const products = [
         oldPrice: null,
         badge: "destaque",
         icon: "fas fa-puzzle-piece",
-        image: "img/brincando-com-as-silabas.png",
+        image: "img/brincando-com-as-silabas.jpg",
         description: "Brincando com as Sílabas é um jogo pedagógico que torna o aprendizado das sílabas uma experiência divertida. As crianças desenvolvem consciência fonológica enquanto combinam e formam palavras com as peças do jogo.",
         howToUse: "Imprima e recorte as peças do jogo. Espalhe as sílabas sobre a mesa e desafie a criança a combinar as partes para formar palavras. Pode ser jogado em duplas ou grupos pequenos, tornando a atividade ainda mais dinâmica.",
         video: null
@@ -40,7 +40,7 @@ const products = [
         oldPrice: null,
         badge: null,
         icon: "fas fa-clock",
-        image: "img/hora-da-leiturinha.png",
+        image: "img/hora-da-leiturinha.jpg",
         description: "Hora da Leitura é um material criativo para incentivar o hábito da leitura desde cedo. Com textos curtos, imagens coloridas e atividades de interpretação, a criança desenvolve fluência e compreensão leitora.",
         howToUse: "Reserve um momento tranquilo do dia para a leitura. Imprima as páginas e leia junto com a criança, fazendo perguntas sobre a história. Em seguida, proponha as atividades de interpretação presentes no material.",
         video: null
@@ -53,7 +53,7 @@ const products = [
         oldPrice: null,
         badge: "novo",
         icon: "fas fa-home",
-        image: "img/a-casa-e-o-seu-dono.png",
+        image: "img/a-casa-e-o-seu-dono.jpg",
         description: "\"A Casa e o Seu Dono\" é um livro infantil ilustrado que trabalha conceitos de pertencimento, família e identidade de forma lúdica e carinhosa. Ideal para crianças de 4 a 7 anos.",
         howToUse: "Leia a história em voz alta para a criança, mostrando as ilustrações. Após a leitura, converse sobre a história com perguntas simples como: 'Quem mora na casa?' e 'Como é a sua casa?'. Use as atividades do livro para fixar o aprendizado.",
         video: null
@@ -66,7 +66,7 @@ const products = [
         oldPrice: null,
         badge: "destaque",
         icon: "fas fa-circle-notch",
-        image: "img/bambole-voando-alto.png",
+        image: "img/bambole-voando-alto.jpg",
         description: "Bambolê Voando Alto é um jogo pedagógico que une movimento e aprendizado! As crianças desenvolvem coordenação motora, reconhecimento de letras e números enquanto se divertem com as dinâmicas do jogo.",
         howToUse: "Imprima e monte o material conforme as instruções. Organize as crianças em grupos e siga as regras propostas. O jogo pode ser adaptado para sala de aula ou espaços abertos, sendo ótimo para aulas de educação física integrada à alfabetização.",
         video: null
@@ -79,7 +79,7 @@ const products = [
         oldPrice: null,
         badge: null,
         icon: "fas fa-spell-check",
-        image: "img/a-casa-das-silabas.png",
+        image: "img/a-casa-das-silabas.jpg",
         description: "A Casa das Sílabas é um material pedagógico que usa a metáfora de uma casa para ensinar as famílias silábicas de forma visual e intuitiva. Cada 'cômodo' da casa abriga um grupo de sílabas, facilitando a memorização.",
         howToUse: "Imprima e monte a casa das sílabas. Apresente um cômodo por vez, repetindo as sílabas em voz alta com a criança. Depois, use os cartões de palavras inclusos para que a criança localize as sílabas correspondentes na casa.",
         video: null
@@ -92,7 +92,7 @@ const products = [
         oldPrice: null,
         badge: "novo",
         icon: "fas fa-th",
-        image: "img/bingo.png",
+        image: "img/bingo.jpg",
         description: "O Bingo das Sílabas é um jogo coletivo e divertidíssimo para trabalhar o reconhecimento de sílabas e palavras. Perfeito para atividades em sala de aula ou em casa com a família, torna o aprendizado uma festa!",
         howToUse: "Imprima as cartelas e os marcadores. O professor ou um adulto sorteia as sílabas e as anuncia em voz alta. Cada jogador marca a sílaba na sua cartela. Ganha quem completar uma linha, coluna ou a cartela inteira primeiro!",
         video: null,
