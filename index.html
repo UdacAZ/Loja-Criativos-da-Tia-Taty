@@ -408,6 +408,20 @@
         </div>
     </div>
 
+    <!-- Modal confirmação de e-mail -->
+    <div class="modal-overlay" id="emailConfirmOverlay">
+        <div class="modal-box" style="max-width:420px;text-align:center;padding:36px 28px">
+            <div style="font-size:2.5rem;margin-bottom:12px">📧</div>
+            <h3 style="font-family:'Fredoka One',cursive;color:var(--pink);font-size:1.4rem;margin-bottom:8px">Confirme seu e-mail</h3>
+            <p style="color:var(--text-light);font-size:0.95rem;margin-bottom:20px">O produto será enviado para este endereço. Está correto?</p>
+            <div style="background:var(--pink-lighter);border-radius:10px;padding:14px;margin-bottom:24px;font-size:1rem;font-weight:700;color:var(--pink-dark)" id="emailConfirmDisplay"></div>
+            <div style="display:flex;gap:12px;justify-content:center">
+                <button onclick="emailConfirmCancel()" style="flex:1;padding:12px;border-radius:10px;border:2px solid var(--pink);background:#fff;color:var(--pink);font-weight:700;cursor:pointer;font-size:0.95rem">Corrigir</button>
+                <button onclick="emailConfirmOk()" style="flex:1;padding:12px;border-radius:10px;border:none;background:var(--pink);color:#fff;font-weight:700;cursor:pointer;font-size:0.95rem">Confirmar e pagar</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Back to Top -->
     <button class="back-to-top" id="backToTop" title="Voltar ao topo">
         <i class="fas fa-chevron-up"></i>

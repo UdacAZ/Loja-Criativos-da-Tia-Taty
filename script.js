@@ -785,11 +785,21 @@ function checkoutGoToPayment() {
 
     checkoutData = { name, email, phone };
 
+    // Mostrar modal de confirmação de e-mail
+    document.getElementById('emailConfirmDisplay').textContent = email;
+    document.getElementById('emailConfirmOverlay').classList.add('active');
+}
+
+function emailConfirmOk() {
+    document.getElementById('emailConfirmOverlay').classList.remove('active');
     const total = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
     document.getElementById('checkoutTotal').textContent = `R$ ${formatPrice(total)}`;
-
     checkoutGoToStep(2);
     generatePixPayment(total);
+}
+
+function emailConfirmCancel() {
+    document.getElementById('emailConfirmOverlay').classList.remove('active');
 }
 
 function checkoutGoBack() {
